@@ -3,6 +3,8 @@ import sqlite3
 dictProcessingPhotoscan = {'Server': {1: 'DowloadPhoto', 2: 'CreatDirProject'},
                          'Photoscan':{1: 'CreatProject', 2: 'AddPhoto', 3: 'alingPhotos', 4: 'CoordinateSystem', 5: 'buildDenseCloud', 6: 'ManualProcessing'}}
 
+dictProcessingUserManager = {'Server': {1: 'Скачивание фотографий', 2: 'Создание котолога пользователя', 3: 'Все этапы сделаны'},
+                         'Photoscan':{1: 'Создание проекта Photoscan', 2: 'Добовления фотографий', 3: 'Выравнивание фотографий', 4: 'Выставления СК', 5: 'Построения плотного облака', 6: 'Ожидание ручной обработки'}}
 class DBManager:
     def __init__(self, pachDB, SettingsPC):
 
@@ -10,6 +12,7 @@ class DBManager:
         self.conn = sqlite3.connect(pachDB, check_same_thread=False)  # или :memory: чтобы сохранить в RAM
         self.cursor = self.conn.cursor()
         self.dictProcessingPhotoscan = dictProcessingPhotoscan
+        self.dictProcessingUserManager = dictProcessingUserManager
         self.killed = False
 
     def getSettings(self):
@@ -76,10 +79,27 @@ class DBManager:
             else:
                 return False
         except IndexError:
-            return False
+            return 'error'
+
+    def getNeedProcessingServer(self, UserID, process):
+        '''
+        True - Такой процесс уже быполнялся и он закончился успешно
+        False - Такого процесса небыло либо он выполнелся неудачно
+        :param UserID:
+        :param process:
+        :return:
+        '''
+        wallet = self.cursor.execute("SELECT STATE FROM treatment WHERE CATEGORY = 'Server' AND PROCESS = ? AND  ID = ?",(process, UserID))
+        try:
+            if wallet.fetchall()[0][0] == 1:
+                return True
+            else:
+                return False
+        except IndexError:
+            return "error"
 
     def getAllIDForProcessing(self):
-        allUserID = self.getListKey(self.getAllUserID())
+        allUserID = self.getAllUniqueUsers()
         itog = []
         for UserID in allUserID:
             try:
@@ -93,6 +113,10 @@ class DBManager:
                 pass
 
         return itog
+
+    def getAllUniqueUsers(self):
+        allUserID = self.getListKey(self.getAllUserID())
+        return allUserID
 
 
 if __name__ == "__main__":
